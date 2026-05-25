@@ -1,5 +1,4 @@
 # Contract Achitecture
-------
 ```bash
 TaxToken.sol
 │
