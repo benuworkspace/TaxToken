@@ -1,6 +1,5 @@
 # Contract Achitecture
 ------
-## BLUEPRINT
 ```bash
 TaxToken.sol
 │
