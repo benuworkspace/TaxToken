@@ -26,17 +26,17 @@ contract DeployTaxToken is Script {
     function run() public returns (TaxToken taxtoken) {
 
         // Load environment variables
-        uint256 developerPrivateKey = vm.envUint("PRIVATE_KEY");
-        address developerAddress    = vm.addr(deployerPrivateKey);
+        uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
+        address deployerAddress    = vm.addr(deployerPrivateKey);
 
         // Treasury wallet: gunakan deployer sebagai treasury
         // Di production nyata ini harus multisig wallet
         address treasuryWallet = deployerAddress;
 
         // ___________ Pre-Deploy Logging ____________
-        console.log("=========================================================");
-        console.log("                    DEPLOYING TAXTOKEN                   ");
-        concole.log("=========================================================");
+        console.log("===============================================================================");
+        console.log("                               DEPLOYING TAXTOKEN                              ");
+        console.log("===============================================================================");
         console.log("Deployer          :", deployerAddress);
         console.log("Treasury Wallet   :", treasuryWallet);
         console.log("Treasury Tax      :", TREASURY_TAX_BPS, "bps (3%)");
@@ -56,19 +56,19 @@ contract DeployTaxToken is Script {
         vm.stopBroadcast();
 
         // __________ Post-Deploy Logging ____________
-        console.log("=========================================================");
-        console.log("                   DEPLOY SUCCESSFUL!!!                  ");
-        concole.log("=========================================================");
-        console.log("Contract Address :", address(token));
-        console.log("Token Name       :", token.name());
-        console.log("Token Symbol     :", token.symbol());
-        console.log("Total Supply     :", token.totalSupply() / 1e18, "TAX");
-        console.log("Treasury Tax     :", token.treasuryTaxBps(), "bps");
-        console.log("Burn Tax         :", token.burnTaxBps(), "bps");
-        console.log("Max Total Tax    :", token.MAX_TOTAL_TAX_BPS(), "bps");
-        console.log("Owner            :", token.owner());
-        console.log("Treasury Wallet  :", token.treasuryWallet());
-        concole.log("=========================================================");
+        console.log("===============================================================================");
+        console.log("                              DEPLOY SUCCESSFUL!!!                             ");
+        console.log("===============================================================================");
+        console.log("Contract Address :", address(taxtoken));
+        console.log("Token Name       :", taxtoken.name());
+        console.log("Token Symbol     :", taxtoken.symbol());
+        console.log("Total Supply     :", taxtoken.totalSupply() / 1e18, "TAX");
+        console.log("Treasury Tax     :", taxtoken.treasuryTaxBps(), "bps");
+        console.log("Burn Tax         :", taxtoken.burnTaxBps(), "bps");
+        console.log("Max Total Tax    :", taxtoken.MAX_TOTAL_TAX_BPS(), "bps");
+        console.log("Owner            :", taxtoken.owner());
+        console.log("Treasury Wallet  :", taxtoken.treasuryWallet());
+        console.log("===============================================================================");
         console.log("Etherscan:");
         console.log(
             string(abi.encodePacked(
@@ -76,7 +76,7 @@ contract DeployTaxToken is Script {
                 vm.toString(address(taxtoken))
             ))
         );
-        concole.log("=========================================================");
+        console.log("===============================================================================");
 
         return taxtoken;
     }
