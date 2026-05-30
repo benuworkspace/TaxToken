@@ -289,7 +289,7 @@ contract TaxToken is ERC20, ERC20Pausable, Ownable {
         if (newTaxBps == burnTaxBps) revert NoChangeDetected();
 
         uint256 newTotalTax = treasuryTaxBps + newTaxBps;
-        if (newTaxBps > MAX_TOTAL_TAX_BPS) {
+        if (newTotalTax > MAX_TOTAL_TAX_BPS) {
             revert TaxTooHigh(newTotalTax, MAX_TOTAL_TAX_BPS);
         }
 
@@ -352,7 +352,7 @@ contract TaxToken is ERC20, ERC20Pausable, Ownable {
     /// @dev Only owner can mint. Tax is not applied to minting.
     /// @param to Recipient of newly minted tokens
     /// @param amount Amount to mint in token units (wei)
-    function min(address to, uint256 amount) external onlyOwner {
+    function mint(address to, uint256 amount) external onlyOwner {
         if (to == address(0)) revert InvalidAddress();
         _mint(to, amount);
     }
