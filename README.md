@@ -1,4 +1,91 @@
-# Contract Achitecture
+# TaxToken — ERC20 with Configurable Transfer Tax
+
+A production-ready ERC20 token with configurable treasury
+and burn tax mechanisms. Built with OpenZeppelin contracts,
+comprehensive test coverage, and full Etherscan verification.
+
+## Deployed Contract
+
+| Network | Address | Etherscan |
+|---------|---------|-----------|
+| Sepolia Testnet | `0xE467Dc791117747123720fb6ccf47deF2aae9055` | [View on Etherscan](https://sepolia.etherscan.io/address/0xe467dc791117747123720fb6ccf47def2aae9055) |
+
+## How Tax Works
+
+Every transfer between non-exempt addresses automatically
+deducts tax before the recipient receives tokens:
+Transfer Amount: 1,000 TAX
+
+Treasury Tax (3%): 30 TAX → treasury wallet Burn Tax (2%): 20 TAX → burned (reduces supply) ───────────────────────────── Recipient receives: 950 TAX
+
+
+Tax is calculated in basis points (bps):
+- 100 bps = 1%
+- 300 bps = 3%
+- Maximum total tax: 2,500 bps (25%) — hardcoded, cannot be changed
+
+## Features
+
+- ✅ **Standard ERC20** — fully compatible with wallets and DEX
+- ✅ **Treasury Tax** — configurable % sent to treasury wallet
+- ✅ **Burn Tax** — configurable % permanently burned each transfer
+- ✅ **Exempt List** — addresses that bypass tax (owner, treasury, DEX pairs)
+- ✅ **Configurable** — owner can update tax rates within safe limits
+- ✅ **Pausable** — emergency pause for all transfers
+- ✅ **Max Tax Cap** — hard limit of 25% prevents rug pull via tax
+- ✅ **Mintable** — owner can mint additional tokens
+- ✅ **Verified** — source code publicly verified on Etherscan
+
+## Token Info
+
+| Property | Value |
+|----------|-------|
+| Name | Tax Example Token |
+| Symbol | TAX |
+| Decimals | 18 |
+| Initial Supply | 1,000,000,000 TAX |
+| Treasury Tax | 3% (300 bps) |
+| Burn Tax | 2% (200 bps) |
+| Total Tax | 5% (500 bps) |
+| Max Total Tax | 25% (2,500 bps) |
+| Network | Sepolia Testnet |
+
+## Tax Configuration
+
+### Exempt Addresses
+These addresses are not subject to transfer tax:
+
+| Address | Reason |
+|---------|--------|
+| Contract deployer | Initial setup and liquidity operations |
+| Contract itself | Internal operations |
+| Treasury wallet | Avoids double taxation on received tax |
+| Custom exemptions | DEX pairs, partner contracts (set by owner) |
+
+### Updating Tax Rates
+
+```solidity
+// Update treasury tax (only owner)
+token.setTreasuryTax(500);  // 5%
+
+// Update burn tax (only owner)
+token.setBurnTax(100);      // 1%
+
+// Total must not exceed 2,500 bps (25%)
+```
+
+### Adding DEX Pair to Exempt List
+
+After listing on Uniswap or other DEX, add the pair
+address to the exempt list to prevent AMM calculation issues:
+
+```solidity
+// Add Uniswap V2 pair to exempt list (only owner)
+token.setExemption(uniswapPairAddress, true);
+```
+
+## Architecture
+
 ```bash
 TaxToken.sol
 │
@@ -62,317 +149,93 @@ TaxToken.sol
     ├── getTaxInfo()
     └── calculateTax()
 ```
-----
 
-## 1. Prameter Token
-### Identitas Token
+
+## Test Coverage
+
 ```bash
-Nama            : Tax Example Token
-Symbol          : TAX
-Decimals        : 18 (standar)
-Total Supply    : 1,000,000,000 (1 MIliar)
-                  -> sengaja supply besar karena tax mecanism membuat
-                     token terus berkuranng (burn). 
+forge test --gas-report
 ```
 
-### Tax Configuration
+**65 tests — all passing**
+
+| Category | Tests |
+|----------|-------|
+| Deployment | 15 |
+| Transfer with Tax | 7 |
+| Exemption | 8 |
+| Tax Configuration | 8 |
+| Treasury Wallet | 7 |
+| Pause | 3 |
+| View Functions | 4 |
+| Edge Cases | 3 |
+| Fuzz Testing | 3 |
+| Gas Report | 3 |
+
+### Gas Usage
+
+| Function | Avg Gas |
+|----------|---------|
+| transfer (with tax) | ~85,000 |
+| transfer (exempt) | ~55,000 |
+| setTreasuryTax | ~30,000 |
+| setExemption | ~28,000 |
+
+> Note: Transfer with tax costs more than standard ERC20
+> because each transfer executes three sub-transfers:
+> recipient, treasury, and burn.
+
+## Deployment
+
 ```bash
-Treasury Tax   : 3% -> masuk ke treasury wallet
-Burn Tax       : 2% -> token dihancurkan
-Total Tax      : 5% -> yang dipotong dari setiap transfer
+# Clone and setup
+git clone https://github.com/benuworkspace/taxtoken
+cd hari-05
+forge install
 
-Maximum Tax    : 25% total (hard cap, tidak bisa diubah)
-                 -> proteksi user dari rugpull
-                 -> 25% dibagi antara semua jenis tax
+# Configure environment
+cp .env.example .env
+# Fill in PRIVATE_KEY, SEPOLIA_RPC_URL, ETHERSCAN_API_KEY
 
-kenapa 5% total untuk contoh ini?
--> cukup terasa efeknya untuk testing
--> tidak terlalu tinggi sehingga transaksi gagal DEX
--> realisitis untuk production token
+# Run tests
+forge test
+
+# Deploy
+forge script script/DeployTaxToken.s.sol \
+    --rpc-url $SEPOLIA_RPC_URL \
+    --private-key $PRIVATE_KEY \
+    --broadcast
 ```
 
-### Treasury Configuration
-```bash
-Treasury address  : ditentukan saat deploy kontrak (constructor parameter)
-                    -> bisa wallet owner, multisig, atau contract lain
-                    -> bisa diupdate oleh owner setelah deploy
+## Security Considerations
 
-kenapa treasury bisa diupdate?
--> project mungkin pindak ke mulitisig dikemudian hari
--> kontrol yang fleksibel untuk project yang berkembang
-```
-----
+**1. Max Tax Cap**
+`MAX_TOTAL_TAX_BPS` is a `constant` hardcoded at 2,500 (25%).
+It cannot be changed by anyone after deployment.
+This prevents rug pulls via tax manipulation.
 
-## 2. Exampt Address List
-tidak semua transfer boleh kena tax. kita perlu daftar address yang dikecualikan dari tax mecanism.
+**2. Centralization Risk**
+Owner can update tax rates and treasury wallet.
+For production deployment, consider:
+- Transferring ownership to a multisig (Gnosis Safe)
+- Adding a timelock for tax changes
+- Renouncing ownership after initial setup
 
-siapa yang exampt?
-```bash
-1. address(this) - contract itu sendiri
-   kenapa: saat kontrak mendistribusikan token untuk liquidity atau treasury,
-   tidak boleh kena tax dari dirinya sendiri - infiniti loop.
+**3. DEX Compatibility**
+Tax tokens require users to set slippage tolerance
+above the total tax rate when trading on DEX.
+For 5% total tax, set slippage to at least 6%.
 
-2. owner - deployer kontrak
-   kenapa: setup awal seperti menambah liquidity tidak boleh kena tax.
-   ini juga memudahkan testing dan maintenance
+**4. DeFi Protocol Compatibility**
+Fee-on-transfer tokens may not be compatible with
+all DeFi protocols. Always test compatibility before
+integrating with lending or yield farming protocols.
 
-3. treasury - wallet penerima tax
-   kenapa: saat treasury mengirim token (misalnya untuk bayar tim),
-   tidak boleh kena tax lagi - double taxation.
+**5. Integer Division Rounding**
+Tax calculations use integer division which rounds
+down. Very small transfers (< 10,000 wei) may result
+in zero tax deduction due to rounding.
 
-4. DEX pair address (ditambahkan manual setelah deploy)
-   kenapa: ini adlaah address uniswap/pancakeswap pool.
-   kalau pool kena tax saat swab, kalkulasi AMM (Automated Market Maker) jadi salah.
-   pair address harus diketahui setelah listing.
-```
+## License
 
-### Struktur example list:
-```bash
-// mapping: address -> apakah exampt dari tax?
-mapping(address => bool) private isExamptFromTax;
-
-// siapa yang bisa tambah/hapus exampt?
-// -> hanya owner (onlyOwner modifier)
-
-// apakah exampt bisa dilihat publik?
-// -> ya, via getter function
-// -> transparansi penting untuk trust
-```
-----
-
-## 3. State Variabel Lengkap
-ini adalah semua data yang perlu disimpan di blockchain
-```bash
-IDENTITAS TOKEN:
---------------------------------------------------------------------------------------
-(dihandle OPenZeppelin ERC20 - nama, symbol, decimals)
-
-TAX CONFIGURATION:
---------------------------------------------------------------------------------------
-uint256 public treasuryTaxBps                     -> treasury tacx dalam basis points
-uint256 public burnTaxBps                         -> bun=rn tax dalam basis points
-uint256 public constant MAX_TOTAL_TAX_BPS = 2500  -> max 25% total tax
-                                                  -> tidak bisa diubag - hard cap
-
-BASIS POINTS:
---------------------------------------------------------------------------------------
-kenapa basis points (bps) bukan persentase langsung?
-
-kalau pakai persentase (uint256 percentage):
--> 5% tersimpan sebagai 5
--> untuk hitung: amount * 5 / 10
--> presisi buruk untuk angka kecil
-
-kalau pakai basis points (uint256 bps):
--> 5% tersimpan sebagai 500 (500 / 10000 = 5%)
--> untuk hitung: amount * 500 / 10000
--> presisi jauh lebih baik
--> bisa represent 0.01% = 1 bps
-
-contoh:
-1 bps        = 0.01%
-50 bps       = 0.5%
-100 bps      = 1%
-500 bps      = 5%
-1000 bps     = 10%
-2500 bps     = 25%
-10000 bps    = 100%
-
-
-ADDRESSES:
---------------------------------------------------------------------------------------
-address public treasuryWallet          -> penerima treasury tax
-                                       -> bisa diupdate oleh owner
-
-
-EXAMPTION:
---------------------------------------------------------------------------------------
-mapping(address => bool)
-    private _isEXamptFromTax           -> daftar address yang bebas tax
-
-
-STATISTICS (opsional tapi berguna untuk portfolio):
---------------------------------------------------------------------------------------
-uint256 public totalTaxCollected       -> total tax yang sudah dipotong
-uint256 public totalBurned             -> total token yang sudah dibakar
-```
-----
-
-## 4. Function Yang Dibutuhkan
-```bash
-─────────────────────────────────────────────────────
-transfer()       → akan kita override via _update
-transferFrom()   → akan kita override via _update
-approve()        → tidak perlu override
-balanceOf()      → tidak perlu override
-totalSupply()    → tidak perlu override
-allowance()      → tidak perlu override
-
-CORE OVERRIDE (yang perlu kita tulis):
-─────────────────────────────────────────────────────
-_update()        → PALING PENTING
-                   intercept semua transfer
-                   inject tax logic di sini
-                   panggil super._update() untuk
-                   eksekusi transfer asli
-
-ADMIN FUNCTIONS (hanya owner):
-─────────────────────────────────────────────────────
-setTreasuryTax(uint256 newTaxBps)
-                 → update treasury tax rate
-                 → validasi: total tax tidak exceed MAX
-
-setBurnTax(uint256 newTaxBps)
-                 → update burn tax rate
-                 → validasi: total tax tidak exceed MAX
-
-setTreasuryWallet(address newWallet)
-                 → update alamat treasury
-                 → validasi: tidak zero address
-
-setExemption(address account, bool exempt)
-                 → tambah atau hapus dari exempt list
-                 → emit event untuk transparency
-
-pause()          → pause semua transfer
-unpause()        → unpause
-
-mint(address, uint256)
-                 → cetak token baru (hanya owner)
-                 → hanya saat tidak paused
-
-VIEW FUNCTIONS (bisa dipanggil siapapun):
-─────────────────────────────────────────────────────
-isExemptFromTax(address)
-                 → cek apakah address exempt
-
-getTaxInfo()
-                 → return semua tax config sekaligus
-                 → berguna untuk frontend
-
-calculateTax(uint256 amount)
-                 → hitung berapa tax yang akan dipotong
-                 → berguna untuk user sebelum transfer
-```
-----
-
-## 5. Flow Diagram Trasnfer dengan Tax
-Ini adalah alur eksekusi yang akan terjadi setiap kali transfer() atau transferFrom() dipanggil:
-```bash
-User panggil transfer(to, amount)
-              │
-              ▼
-    OpenZeppelin ERC20._transfer()
-              │
-              ▼
-    _update(from, to, amount) ← KITA OVERRIDE INI
-              │
-              ├─── Apakah contract paused?
-              │         Ya  → revert EnforcedPause
-              │         Tidak ↓
-              │
-              ├─── Apakah from ATAU to exempt dari tax?
-              │         Ya  → skip tax, langsung transfer
-              │         │    super._update(from, to, amount)
-              │         │
-              │         Tidak ↓
-              │
-              ├─── Hitung tax
-              │    treasuryTaxAmount = amount * treasuryTaxBps / 10000
-              │    burnTaxAmount     = amount * burnTaxBps / 10000
-              │    totalTaxAmount    = treasuryTaxAmount + burnTaxAmount
-              │    amountAfterTax    = amount - totalTaxAmount
-              │
-              ├─── Eksekusi transfer ke penerima
-              │    super._update(from, to, amountAfterTax)
-              │
-              ├─── Kirim treasury tax
-              │    super._update(from, treasuryWallet, treasuryTaxAmount)
-              │
-              ├─── Burn tax
-              │    super._update(from, address(0), burnTaxAmount)
-              │    → ini menurunkan totalSupply
-              │
-              ├─── Update statistik
-              │    totalTaxCollected += totalTaxAmount
-              │    totalBurned       += burnTaxAmount
-              │
-              └─── Emit TaxApplied event
-```
-
-### Mengapa kita panggil super._update berkali-kali?
-```bash
-// Cara yang salah — satu _update dengan amount penuh
-// lalu coba "ambil balik" untuk tax
-super._update(from, to, amount);          // transfer semua
-super._update(to, treasury, taxAmount);   // ambil dari penerima???
-
-// Ini salah karena:
-// 1. Event Transfer pertama sudah emit dengan amount penuh
-// 2. Penerima sudah "menerima" amount penuh
-// 3. Ambil balik dari penerima bukan cara yang benar
-
-// Cara yang benar — multiple _update dengan amount yang tepat
-super._update(from, to, amountAfterTax);        // ke penerima
-super._update(from, treasury, treasuryAmount);  // tax ke treasury
-super._update(from, address(0), burnAmount);    // burn
-// Setiap _update emit Transfer event sendiri-sendiri
-// Ini yang benar secara accounting
-```
-----
-
-## 6. Event yang perlu di emit
-Selain event standard ERC20 (Transfer, Approval), kita tambahkan event custom untuk tax:
-```bash
-// Di-emit setiap kali tax dipotong dari transfer
-event TaxApplied(
-    address indexed from,
-    address indexed to,
-    uint256 amount,           // amount sebelum tax
-    uint256 treasuryTax,      // berapa ke treasury
-    uint256 burnTax,          // berapa yang dibakar
-    uint256 amountAfterTax    // berapa yang diterima
-);
-
-// Di-emit saat tax rate diubah
-event TreasuryTaxUpdated(
-    uint256 oldTaxBps,
-    uint256 newTaxBps
-);
-
-event BurnTaxUpdated(
-    uint256 oldTaxBps,
-    uint256 newTaxBps
-);
-
-// Di-emit saat treasury wallet diubah
-event TreasuryWalletUpdated(
-    address indexed oldWallet,
-    address indexed newWallet
-);
-
-// Di-emit saat exemption diubah
-event ExemptionUpdated(
-    address indexed account,
-    bool isExempt
-);
-```
-----
-
-## 7. Error yang dibutuhkan
-```bash
-// Tax rate melebihi maximum
-error TaxTooHigh(
-    uint256 requested,    // tax yang diminta
-    uint256 maximum       // maximum yang diizinkan
-);
-
-// Treasury wallet tidak valid
-error InvalidTreasuryWallet();
-
-// Address tidak valid (zero address)
-error InvalidAddress();
-
-// Tidak ada perubahan yang terjadi
-error NoChangeDetected();
-```
+MIT

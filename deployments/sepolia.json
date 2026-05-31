@@ -1,0 +1,20 @@
+{
+  "network": "sepolia",
+  "chainId": 11155111,
+  "deployedAt": "2026-05-31",
+  "contracts": {
+    "TaxToken": {
+      "address": "0xE467Dc791117747123720fb6ccf47deF2aae9055",
+      "deployer": "0xDb6e602b5b90100f5a149398abf2daFBBd1D0386",
+      "txHash": "0xc95d0b4346dbaad01ea892bdab74bf9463d8edabe58deeaa1cf216b11aec7e78",
+      "blockNumber": 10960081,
+      "constructorArgs": {
+        "treasuryWallet": "0xDb6e602b5b90100f5a149398abf2daFBBd1D0386",
+        "treasuryTaxBps": 300,
+        "burnTaxBps": 200
+      },
+      "etherscan": "https://sepolia.etherscan.io/address0xE467Dc791117747123720fb6ccf47deF2aae9055",
+      "verified": true
+    }
+  }
+}
